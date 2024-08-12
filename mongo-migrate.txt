@@ -1,0 +1,5 @@
+dbUrl=mongodb://localhost:27017/
+dbName=67f427d7-cac2-47df-930c-c0d64083a994
+configFile=ahmed
+
+

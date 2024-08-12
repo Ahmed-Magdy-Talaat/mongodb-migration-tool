@@ -1,0 +1,435 @@
+<migration>
+
+
+<operation>
+<deleteField collection="organization-content" name="content" id="13"/>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="14">
+<filter>{"_id":{"$lt":"60ed91f47d56a71595374921"}}</filter>
+<update>{"$rename":{
+  "contentValues":"content"
+}}</update>
+</updateDocuments>
+</operation>
+
+
+<!-- adding the fields related to content.systemContentType -->
+<operation>
+<updateDocuments collection="organization-content" id="15" >
+<filter>{}</filter>
+<update><![CDATA[
+[
+ 
+  {
+    "$set": {
+      "content.SystemContentType.data.CommonContentType.data.id": "$id",
+      "content.SystemContentType.data.CommonContentType.data.name": { "$arrayElemAt": [{ "$split": ["$name", "."] }, 0] },
+      "content.SystemContentType.data.CommonContentType.data.type": "$type",
+      "content.SystemContentType.data.CommonContentType.data.creationDate": "$createdDate",
+      "content.SystemContentType.data.CommonContentType.data.createdBy": "$createdBy",
+      "content.SystemContentType.data.CommonContentType.data.modificationDate": "$modifiedDate",
+      "content.SystemContentType.data.CommonContentType.data.modifiedBy": { "$ifNull": ["$modifiedBy", "$createdBy"] },
+      "content.SystemContentType.data.CommonContentType.data.currentSize": {
+        "$cond": [
+          { "$eq": ["$type", "file"] },
+          "$currentNodeSize",
+          "$currentVersionsSize"
+        ]
+      },
+      "content.SystemContentType.data.CommonContentType.data.createdByUserFullName": { "$ifNull": ["$userInfo.fullName", "$userInfo.email", "$createdBy"] },
+      "content.SystemContentType.data.CommonContentType.data.contentTypeName": { "$ifNull": ["$contentTypeInfo.title", "Blank"] },
+      "content.SystemContentType.data.CommonContentType.data.contentTypeGroupId": "$contentTypeGroupId"
+    }
+  },
+  {
+    "$addFields": {
+      "content.modificationDate": "$modifiedDate",
+      "content.creationDate": "$createdDate"
+    }
+  }
+]
+
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+<!-- adding the fields related to content.systemContentType.commonContentType -->
+<operation>
+<updateDocuments collection="organization-content" id="16" >
+<filter>{}</filter>
+<update><![CDATA[
+[
+  {
+    "$set": {
+      "content.SystemContentType.data.VersionContentType.data.versionNumber": "$version",
+      "content.SystemContentType.data.VersionContentType.data.currentRenditionSize": { "$ifNull": ["$currentRenditionsSize", 0] },
+      "content.SystemContentType.data.VersionContentType.data.currentVersionsSize": "$currentVersionsSize",
+      "content.SystemContentType.data.VersionContentType.data.extention": { "$arrayElemAt": [{ "$split": ["$name", "."] }, 1] },
+      "content.SystemContentType.data.VersionContentType.data.pagesCount": "$pagesCount"
+    }
+  }
+]
+
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+<operation>
+<updateDocuments collection="organization-content" id="17">
+<filter>{}</filter>
+<update><![CDATA[
+[
+  {
+    "$set": {
+      "content.SystemContentType.data.FolderContentType.data.efficiency": "$efficiency",
+      "content.SystemContentType.data.FolderContentType.data.isSystemFolder": false
+    }
+  }
+]
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="18">
+<filter>{}</filter>
+<pipeline><![CDATA[
+[
+  {
+    "$match": {
+      "type": "folder"
+    }
+  },
+  {
+    "$lookup": {
+      "from": "content-type",
+      "let": { "folderId": "$id" },
+      "pipeline": [
+        { "$match": 
+          { 
+            "$expr": { "$and": [
+              { "$eq": ["$id", "$$folderId"] },
+              { "$eq": ["$isLatest", true] },
+              { "$eq": ["$appliedFor", "VersionContentType"] },
+              { "$eq": ["$isAtom", false] }
+            ] }
+          }
+        },
+        {
+          "$project": {
+            "allowedDocTypeId": "$id",
+            "name": "$title",
+            "groupId": "$groupId"
+          }
+        }
+      ],
+      "as": "allowedDocTypes"
+    }
+  },
+  {
+    "$addFields": {
+      "allowedDocTypes": {
+        "$cond": {
+          "if": { "$gt": [{ "$size": "$allowedDocTypes" }, 0] },
+          "then": "$allowedDocTypes",
+          "else": []
+        }
+      }
+    }
+  }
+]
+
+ 
+]]></pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="19">
+<filter>{}</filter>
+<pipeline><![CDATA[
+[
+    {
+        "$match": {
+            "type": "version"
+        }
+    },
+    {
+        "$lookup": {
+            "from": "organization-content",
+            "localField": "parentId",
+            "foreignField": "id",
+            "as": "parentFile"
+        }
+    },
+    {
+        "$unwind": "$parentFile"
+    },
+    {
+        "$match": {
+            "parentFile.type": "file"
+        }
+    },
+    {
+        "$addFields": {
+            "parentFile.binaryData": "$binaryData",
+            "parentFile.pagesCount": "$pagesCount",
+            "parentFile.tempBinary": {
+                "$cond": {
+                    "if": { "$regexMatch": { "input": "$binaryData", "regex": "temp" } },
+                    "then": true,
+                    "else": false
+                }
+            },
+            "parentFile.content": {
+                "$mergeObjects": [
+                    "$parentFile.content",
+                    {
+                        "$arrayToObject": {
+                            "$filter": {
+                                "input": { "$objectToArray": "$content" },
+                                "as": "item",
+                                "cond": { "$ne": ["$$item.k", "SystemContentType"] }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+
+
+
+
+<!--updating DACl with the tenant Id -->
+
+
+
+<operation>
+<updateDocuments collection="organization-content" id="29">
+  <filter>{}</filter>
+  <update>
+  {"$set":{
+    "createdBy":{
+      "fullname":"Ahmed Magdi",
+      "email":"ahmed@contellect.com",
+      "id":"73288cd5-ceef-4eb1-921c-211d0beebaa3"
+    }
+  }}
+  </update>
+</updateDocuments>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="30">
+ <filter>{}</filter>
+  <update>{"$set":{
+    "modifiedBy":{
+      "fullname":"Ahmed Magdi",
+      "email":"ahmed@contellect.com",
+      "id":"73288cd5-ceef-4eb1-921c-211d0beebaa3"
+    }
+  }}
+  </update>
+</updateDocuments>
+</operation>
+
+
+
+
+
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="37">
+    <filter>{"type": {"$in": ["file", "draft", "version"]}}</filter>
+    <update>
+      <![CDATA[
+      [{
+        "$set": {
+          "content.file": {
+            "size": "$content.SystemContentType.data.VersionContentType.data.currentVersionsSize",
+            "extension": "$content.SystemContentType.data.VersionContentType.data.extention",
+            "pagesCount": "$content.SystemContentType.data.VersionContentType.data.pagesCount",
+            "binaryData":"$binaryData",
+            "name":"$name"
+          }
+        }
+      }]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="38">
+    <filter>{"type": {"$in": ["draft", "version", "file"]}}</filter>
+    <update>
+      <![CDATA[
+ [
+    {
+      "$set": {
+        "binaryData": {
+          "$cond": {
+            "if": { "$isArray": "$binaryData" },
+            "then": "$binaryData",
+            "else": [
+              {
+                "$concat": [
+                  { "$toString": "$binaryData" },
+                  "_content.file"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+
+<operation>
+<updateDocuments collection="organization-content" id="39">
+  <filter>{"type":"file"}</filter>
+  <update>
+    {
+      "$set": 
+      {
+        "type": "record"
+      }
+    }
+  </update>
+</updateDocuments>
+</operation>
+
+
+
+
+
+
+<operation>
+  <createAggregationPipeline collection="extended-info" id="41">
+    <filter>{}</filter>
+    <pipeline><![CDATA[
+      [
+        {
+          "$lookup": {
+            "from": "organization-content",
+            "localField": "id",
+            "foreignField": "id",
+            "as": "organizationContentData"
+          }
+        },
+        {
+          "$unwind": "$organizationContentData"
+        },
+        {
+          "$addFields": {
+            "recordId": "$organizationContentData.parentId",
+            "type": "$organizationContentData.type",
+            "totalPages": "$organizationContentData.pagesCount",
+            "binaryData": "$organizationContentData.content.file.binaryData"
+          }
+        },
+        {
+          "$project": {
+            "organizationContentData": 0
+          }
+        }
+      ]
+    ]]></pipeline>
+  </createAggregationPipeline>
+</operation>
+
+
+
+
+  <operation>
+    <updateDocuments collection="extended-info"  id="42">
+      <filter>{}</filter>
+      <update>        {
+            "$rename": {
+                "id": "nodeId"
+            }
+        }</update>
+    </updateDocuments>
+  </operation>
+
+
+  <operation>
+    <updateDocuments collection="scanning-profile" id="43">
+      <filter>{}</filter>
+    <update>
+      {
+        "$set": {
+          "modificationDate": "$modificationDate._d",
+          "creationDate": "$creationDate._d"
+        }
+      }
+    </update>
+    </updateDocuments>
+  </operation>
+
+
+  <operation>
+    <updateDocuments collection="extended-info"  id="45">
+      <filter>{}</filter>
+      <update>        {
+            "$rename": {
+                "index": "pageIndex"
+            }
+        }</update>
+    </updateDocuments>
+  </operation>
+  
+
+
+<operation>
+<addField collection="organization-details" name="landing-page" value="/repository" id="227"/>
+</operation>
+
+<operation>
+<deleteField collection="organization-details" name="fields" id="228"/>
+</operation>
+
+
+
+
+
+
+</migration>

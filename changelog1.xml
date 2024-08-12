@@ -1,0 +1,1474 @@
+<migration>
+<operation>
+<createAggregationPipeline collection="content-type" id="1">
+<filter>{}</filter>
+  <pipeline><![CDATA[
+  [
+  {
+    "$addFields": {
+      "fields": {
+        "$map": {
+          "input": { "$ifNull": ["$fields", []] },
+          "as": "field",
+          "in": {
+            "$let": {
+              "vars": {
+                "component": {
+                  "label": "$$field.nameDisplayed",
+                  "disabled": false,
+                  "tableView": true,
+                  "key": {
+                    "$replaceAll": {
+                      "input": "$$field.title",
+                      "find": " ",
+                      "replacement": "_"
+                    }
+                  },
+                  "input": true,
+                  "validate": {
+                    "required": {
+                      "$cond": [
+                        { "$eq": ["$$field.validation.isMandatory", true] },
+                        true,
+                        "$$REMOVE"
+                      ]
+                    },
+                    "maxLength": {
+                      "$cond": [
+                        { "$gt": ["$$field.validation.maxNumber", null] },
+                        "$$field.validation.maxNumber",
+                        "$$REMOVE"
+                      ]
+                    }
+                  }
+                }
+              },
+              "in": {
+                "$mergeObjects": [
+                  "$$component",
+                  {
+                    "$switch": {
+                      "branches": [
+                        {
+                          "case": { "$in": ["$$field.name", ["text", "barcode"]] },
+                          "then": { "type": "textfield" }
+                        },
+                        {
+                          "case": { "$eq": ["$$field.name", "singleSelectList"] },
+                          "then": {
+                            "type": "select",
+                            "widget": "choicesjs",
+                            "data": {
+                              "values": {
+                                "$let": {
+                                  "vars": {
+                                    "list": {
+                                      "$arrayElemAt": [
+                                        {
+                                          "$filter": {
+                                            "input": "$content-type.items",
+                                            "as": "item",
+                                            "cond": { "$eq": ["$$item.listId", "$$field.listId"] }
+                                          }
+                                        },
+                                        0
+                                      ]
+                                    }
+                                  },
+                                  "in": {
+                                    "$map": {
+                                      "input": "$$list.items",
+                                      "as": "item",
+                                      "in": {
+                                        "label": "$$item.key",
+                                        "value": "$$item.name"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "case": { "$in": ["$$field.name", ["date", "dateRange"]] },
+                          "then": {
+                            "type": "datetime",
+                            "format": "yyyy-MM-dd",
+                            "datePicker": {
+                              "disableWeekends": false,
+                              "disableWeekdays": false
+                            },
+                            "enableTime": false,
+                            "enableMinDateInput": false,
+                            "enableMaxDateInput": false,
+                            "widget": {
+                              "type": "calendar",
+                              "displayInTimezone": "viewer",
+                              "locale": "en",
+                              "useLocaleSettings": false,
+                              "allowInput": true,
+                              "mode": "single",
+                              "enableTime": false,
+                              "noCalendar": false,
+                              "format": "yyyy-MM-dd",
+                              "hourIncrement": 1,
+                              "minuteIncrement": 1,
+                              "time_24hr": false,
+                              "minDate": null,
+                              "disableWeekends": false,
+                              "disableWeekdays": false,
+                              "maxDate": null
+                            }
+                          }
+                        },
+                        {
+                          "case": { "$in": ["$$field.name", ["number", "numberRange"]] },
+                          "then": {
+                            "type": "number",
+                            "mask": false,
+                            "tableView": false,
+                            "delimiter": false,
+                            "requireDecimal": false,
+                            "inputFormat": "plain",
+                            "truncateMultipleSpaces": false
+                          }
+                        },
+                        {
+                          "case": { "$eq": ["$$field.name", "boolean"] },
+                          "then": { "type": "checkbox" }
+                        },
+                        {
+                          "case": { "$eq": ["$$field.name", "multiLineText"] },
+                          "then": { "type": "textarea" }
+                        },
+                        {
+                          "case": { "$eq": ["$$field.name", "multiSelectList"] },
+                          "then": {
+                            "type": "selectboxes",
+                            "data": {
+                              "value": {
+                                "$let": {
+                                  "vars": {
+                                    "list": {
+                                      "$arrayElemAt": [
+                                        {
+                                          "$filter": {
+                                            "input": "$content-type.items",
+                                            "as": "item",
+                                            "cond": { "$eq": ["$$item.listId", "$$field.listId"] }
+                                          }
+                                        },
+                                        0
+                                      ]
+                                    }
+                                  },
+                                  "in": {
+                                    "$map": {
+                                      "input": "$$list.items",
+                                      "as": "item",
+                                      "in": {
+                                        "label": "$$item.key",
+                                        "value": "$$item.name"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "default": { "dontAddIt": true }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]
+
+  ]]></pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+
+
+<!-- filter and update the components fields -->
+
+
+<operation>
+<createAggregationPipeline collection="content-type" id="2">
+<pipeline><![CDATA[
+[
+  {
+    "$addFields": {
+      "fields": {
+        "$filter": {
+          "input": "$fields",
+          "as": "field",
+          "cond": { "$not": ["$$field.dontAddIt"] }
+        }
+      }
+    }
+  }
+]
+
+
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="content-type" id="3">
+<pipeline>
+<![CDATA[
+[
+  {
+    "$addFields": {
+      "components": {
+        "$cond": {
+          "if": { "$gt": [{ "$size": { "$ifNull": ["$fields", []] } }, 0] },
+          "then": [
+            {
+              "label": "Table",
+              "cellAlignment": "left",
+              "key": "table",
+              "type": "table",
+              "numRows": {
+                "$ceil": { "$divide": [{ "$size": { "$ifNull": ["$fields", []] } }, 2] }
+              },
+              "numCols": 2,
+              "input": false,
+              "tableView": false,
+              "rows": {
+                "$map": {
+                  "input": { "$range": [0, { "$ceil": { "$divide": [{ "$size": { "$ifNull": ["$fields", []] } }, 2] } }] },
+                  "as": "i",
+                  "in": {
+                    "$slice": [{ "$ifNull": ["$fields", []] }, { "$multiply": ["$$i", 2] }, 2]
+                  }
+                }
+              }
+            }
+          ],
+          "else": []
+        }
+      }
+    }
+  }
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<!-- updating all content-types with these fields -->
+<operation>
+<createAggregationPipeline collection="content-type" id="4">
+<pipeline>
+<![CDATA[
+  [{"$addFields":{
+      "path": { "$replaceAll": { "input": { "$toLower": "$title" }, "find": " ", "replacement": "-" } },
+      "key": { "$replaceAll": { "input": { "$toLower": "$title" }, "find": " ", "replacement": "" } },
+      "type": "form",
+      "display": "form",
+      "isAtom": false,
+      "localizationTitle": { "$ifNull": ["$localizationTitle", "$title"] },
+      "isOrganizationList": false,
+      "createdBy": { "$ifNull": ["$createdBy", "$modifiedBy"] },
+      "modifiedBy": { "$ifNull": ["$modifiedBy", "$createdBy"] },
+      "creationDate": { "$ifNull": ["$creationDate", "$modificationDate"] },
+      "modificationDate": { "$ifNull": ["$modificationDate", "$creationDate"] },
+      "assignedProcesses": []
+  }
+  }
+  ]
+  ]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<!--removing the field fields in content-type -->
+<operation>
+<deleteField collection="content-type" id="5" name="fields">
+</deleteField>
+</operation>
+
+<operation>
+<deleteField collection="content-type" id="6" name="html">
+</deleteField>
+</operation>
+
+<operation>
+<deleteField collection="content-type" id="7" name="displayedAs">
+</deleteField>
+</operation>
+
+  <operation>
+    <updateDocuments collection="content-type" id="8">
+      <filter>{}</filter>
+      <update>{"$set": {
+        "ACP.ACL": [{
+          "objectID": "mb41q",
+          "permissionLevelId": "d85a8637-a7d1-4cbe-a90f-1c82705f8361",
+          "isUser": false
+        }]
+      }}</update>
+    </updateDocuments>
+  </operation>
+
+<operation>
+<updateDocuments collection="content-type" id="9">
+<filter>{}</filter>
+<update>{"$set":{
+  "ACP.ACL":[{
+    "objectID":"mb41q",
+    "permissionLevelId":"d85a8637-a7d1-4cbe-a90f-1c82705f8361",
+    "isUser":false
+  }]}}</update>
+</updateDocuments>
+</operation>
+
+
+
+
+<operation>
+<updateDocuments collection="content-type" id="10">
+<filter>{}</filter>
+<update><![CDATA[
+[
+  {
+    "$set": {
+      "components": {
+        "$map": {
+          "input": "$components",
+          "as": "component",
+          "in": {
+            "label": "$$component.label",
+            "cellAlignment": "$$component.cellAlignment",
+            "key": "$$component.key",
+            "type": "$$component.type",
+            "numRows": { "$size": "$$component.rows" },
+            "numCols": 2,
+            "input": "$$component.input",
+            "tableView": "$$component.tableView",
+            "rows": {
+              "$map": {
+                "input": "$$component.rows",
+                "as": "row",
+                "in": {
+                  "$map": {
+                    "input": "$$row",
+                    "as": "field",
+                    "in": {
+                      "components": ["$$field"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+<operation>
+  <updateDocuments collection="content-type" id="11">
+    <filter>{"appliedFor": "VersionContentType"}</filter>
+    <update>
+      <![CDATA[
+      [{
+        "$set": {
+          "components": {
+            "$concatArrays": [
+              "$components",
+              [
+                {
+                  "label": "file",
+                  "key": "file",
+                  "type": "webUpload",
+                  "labelWidth": 10,
+                  "labelMargin": 1,
+                  "input": true,
+                  "tableView": false,
+                  "tag": "div",
+                  "className": "row"
+                }
+              ]
+            ]
+          }
+        }
+      }]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="12">
+    <filter>{}</filter>
+    <update><![CDATA[
+    [{
+        "$set": {
+          "contentValues": {
+            "$arrayToObject": {
+              "$map": {
+                "input": {
+                  "$filter": {
+                    "input": "$content",
+                    "as": "item",
+                    "cond": {
+                      "$ne": [ { "$type": "$$item.key" }, "missing" ]
+                    }
+                  }
+                },
+                "as": "item",
+                "in": {
+                  "k": "$$item.key",
+                  "v": { "$ifNull": [ "$$item.value", "" ] }
+                }
+              }
+            }
+          }
+        }
+      }]
+     ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+<deleteField collection="organization-content" name="content" id="13"/>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="14">
+<filter>{}</filter>
+<update>{"$rename":{
+  "contentValues":"content"
+}}</update>
+</updateDocuments>
+</operation>
+
+
+<!-- adding the fields related to content.systemContentType -->
+<operation>
+<updateDocuments collection="organization-content" id="15" >
+<filter>{}</filter>
+<update><![CDATA[
+[
+ 
+  {
+    "$set": {
+      "content.SystemContentType.data.CommonContentType.data.id": "$id",
+      "content.SystemContentType.data.CommonContentType.data.name": { "$arrayElemAt": [{ "$split": ["$name", "."] }, 0] },
+      "content.SystemContentType.data.CommonContentType.data.type": "$type",
+      "content.SystemContentType.data.CommonContentType.data.creationDate": "$createdDate",
+      "content.SystemContentType.data.CommonContentType.data.createdBy": "$createdBy",
+      "content.SystemContentType.data.CommonContentType.data.modificationDate": "$modifiedDate",
+      "content.SystemContentType.data.CommonContentType.data.modifiedBy": { "$ifNull": ["$modifiedBy", "$createdBy"] },
+      "content.SystemContentType.data.CommonContentType.data.currentSize": {
+        "$cond": [
+          { "$eq": ["$type", "file"] },
+          "$currentNodeSize",
+          "$currentVersionsSize"
+        ]
+      },
+      "content.SystemContentType.data.CommonContentType.data.createdByUserFullName": { "$ifNull": ["$userInfo.fullName", "$userInfo.email", "$createdBy"] },
+      "content.SystemContentType.data.CommonContentType.data.contentTypeName": { "$ifNull": ["$contentTypeInfo.title", "Blank"] },
+      "content.SystemContentType.data.CommonContentType.data.contentTypeGroupId": "$contentTypeGroupId"
+    }
+  },
+  {
+    "$addFields": {
+      "content.modificationDate": "$modifiedDate",
+      "content.creationDate": "$createdDate"
+    }
+  }
+]
+
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+<!-- adding the fields related to content.systemContentType.commonContentType -->
+<operation>
+<updateDocuments collection="organization-content" id="16" >
+<filter>{}</filter>
+<update><![CDATA[
+[
+  {
+    "$set": {
+      "content.SystemContentType.data.VersionContentType.data.versionNumber": "$version",
+      "content.SystemContentType.data.VersionContentType.data.currentRenditionSize": { "$ifNull": ["$currentRenditionsSize", 0] },
+      "content.SystemContentType.data.VersionContentType.data.currentVersionsSize": "$currentVersionsSize",
+      "content.SystemContentType.data.VersionContentType.data.extention": { "$arrayElemAt": [{ "$split": ["$name", "."] }, 1] },
+      "content.SystemContentType.data.VersionContentType.data.pagesCount": "$pagesCount"
+    }
+  }
+]
+
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+<operation>
+<updateDocuments collection="organization-content" id="17">
+<filter>{}</filter>
+<update><![CDATA[
+[
+  {
+    "$set": {
+      "content.SystemContentType.data.FolderContentType.data.efficiency": "$efficiency",
+      "content.SystemContentType.data.FolderContentType.data.isSystemFolder": false
+    }
+  }
+]
+
+]]>
+</update>
+</updateDocuments>
+</operation>
+
+
+
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="18">
+<filter>{}</filter>
+<pipeline><![CDATA[
+[
+  {
+    "$match": {
+      "type": "folder"
+    }
+  },
+  {
+    "$lookup": {
+      "from": "content-type",
+      "let": { "folderId": "$id" },
+      "pipeline": [
+        { "$match": 
+          { 
+            "$expr": { "$and": [
+              { "$eq": ["$id", "$$folderId"] },
+              { "$eq": ["$isLatest", true] },
+              { "$eq": ["$appliedFor", "VersionContentType"] },
+              { "$eq": ["$isAtom", false] }
+            ] }
+          }
+        },
+        {
+          "$project": {
+            "allowedDocTypeId": "$id",
+            "name": "$title",
+            "groupId": "$groupId"
+          }
+        }
+      ],
+      "as": "allowedDocTypes"
+    }
+  },
+  {
+    "$addFields": {
+      "allowedDocTypes": {
+        "$cond": {
+          "if": { "$gt": [{ "$size": "$allowedDocTypes" }, 0] },
+          "then": "$allowedDocTypes",
+          "else": []
+        }
+      }
+    }
+  }
+]
+
+ 
+]]></pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="19">
+<filter>{}</filter>
+<pipeline><![CDATA[
+[
+    {
+        "$match": {
+            "type": "version"
+        }
+    },
+    {
+        "$lookup": {
+            "from": "organization-content",
+            "localField": "parentId",
+            "foreignField": "id",
+            "as": "parentFile"
+        }
+    },
+    {
+        "$unwind": "$parentFile"
+    },
+    {
+        "$match": {
+            "parentFile.type": "file"
+        }
+    },
+    {
+        "$addFields": {
+            "parentFile.binaryData": "$binaryData",
+            "parentFile.pagesCount": "$pagesCount",
+            "parentFile.tempBinary": {
+                "$cond": {
+                    "if": { "$regexMatch": { "input": "$binaryData", "regex": "temp" } },
+                    "then": true,
+                    "else": false
+                }
+            },
+            "parentFile.content": {
+                "$mergeObjects": [
+                    "$parentFile.content",
+                    {
+                        "$arrayToObject": {
+                            "$filter": {
+                                "input": { "$objectToArray": "$content" },
+                                "as": "item",
+                                "cond": { "$ne": ["$$item.k", "SystemContentType"] }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+
+<!--tenant migration -->
+<operation>
+<updateDocuments collection="organization-content" id="20">
+<filter>{"id":"73288cd5-ceef-4eb1-921c-211d0beebaa3"}</filter>
+<update>{"$set":{"id":"67f427d7-cac2-47df-930c-c0d64083a994"}}</update>
+</updateDocuments>
+</operation>
+
+
+<operation>
+<updateDocuments collection="organization-content" id="21">
+<filter>{"parentId":"73288cd5-ceef-4eb1-921c-211d0beebaa3"}</filter>
+<update>{"$set":{"parentId":"67f427d7-cac2-47df-930c-c0d64083a994"}}</update>
+</updateDocuments>
+</operation>
+
+
+<!--updating DACl with the tenant Id -->
+<operation>
+<updateDocuments collection="organization-content" id="22">
+<filter>{ "ACP.DACL.0.objectID": "system.service@contellect.com" }  </filter>
+<update>{ "$set":{"ACP.DACL.0.objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }}  </update>
+</updateDocuments>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="23">
+<filter> {"ACP.IACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="24">
+<filter> {"ACP.DACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="25">
+<filter> {"ACP.IACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="26">
+<filter> {"ACP.DACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="27">
+<filter> {"ACP.IACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="28">
+<filter> {"ACP.DACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="29">
+  <filter>{}</filter>
+  <update>
+  {"$set":{
+    "createdBy":{
+      "fullname":"Ahmed Magdi",
+      "email":"ahmed@contellect.com",
+      "id":"67f427d7-cac2-47df-930c-c0d64083a994"
+    }
+  }}
+  </update>
+</updateDocuments>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="30">
+ <filter>{}</filter>
+  <update>{"$set":{
+    "modifiedBy":{
+      "fullname":"Ahmed Magdi",
+      "email":"ahmed@contellect.com",
+      "id":"67f427d7-cac2-47df-930c-c0d64083a994"
+    }
+  }}
+  </update>
+</updateDocuments>
+</operation>
+
+
+
+
+<!--updating DACl with the tenant Id -->
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="31">
+<filter> {"ACP.IACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="32">
+<filter> {"ACP.DACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="33">
+<filter> {"ACP.IACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="34">
+<filter> {"ACP.DACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="35">
+<filter> {"ACP.IACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="36">
+<filter> {"ACP.DACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="37">
+    <filter>{"type": {"$in": ["file", "draft", "version"]}}</filter>
+    <update>
+      <![CDATA[
+      [{
+        "$set": {
+          "content.file": {
+            "size": "$content.SystemContentType.data.VersionContentType.data.currentVersionsSize",
+            "extension": "$content.SystemContentType.data.VersionContentType.data.extention",
+            "pagesCount": "$content.SystemContentType.data.VersionContentType.data.pagesCount",
+            "binaryData":"$binaryData",
+            "name":"$name"
+          }
+        }
+      }]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="38">
+    <filter>{"type": {"$in": ["draft", "version", "file"]}}</filter>
+    <update>
+      <![CDATA[
+ [
+    {
+      "$set": {
+        "binaryData": {
+          "$cond": {
+            "if": { "$isArray": "$binaryData" },
+            "then": "$binaryData",
+            "else": [
+              {
+                "$concat": [
+                  { "$toString": "$binaryData" },
+                  "_content.file"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+
+<operation>
+<updateDocuments collection="organization-content" id="39">
+  <filter>{"type":"file"}</filter>
+  <update>
+    {
+      "$set": 
+      {
+        "type": "record"
+      }
+    }
+  </update>
+</updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="scanning-profile" id="40">
+    <filter>{}</filter>
+    <update>
+      {
+        "$set": {
+          "modificationDate": "$modificationDate._d",
+          "creationDate": "$creationDate._d"
+        }
+      }
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+  <createAggregationPipeline collection="extended-info" id="41">
+    <filter>{}</filter>
+    <pipeline><![CDATA[
+      [
+        {
+          "$lookup": {
+            "from": "organization-content",
+            "localField": "id",
+            "foreignField": "id",
+            "as": "organizationContentData"
+          }
+        },
+        {
+          "$unwind": "$organizationContentData"
+        },
+        {
+          "$addFields": {
+            "recordId": "$organizationContentData.parentId",
+            "type": "$organizationContentData.type",
+            "totalPages": "$organizationContentData.pagesCount",
+            "binaryData": "$organizationContentData.content.file.binaryData"
+          }
+        },
+        {
+          "$project": {
+            "organizationContentData": 0
+          }
+        }
+      ]
+    ]]></pipeline>
+  </createAggregationPipeline>
+</operation>
+
+
+
+
+  <operation>
+    <updateDocuments collection="extended-info"  id="42">
+      <filter>{}</filter>
+      <update>        {
+            "$rename": {
+                "id": "nodeId"
+            }
+        }</update>
+    </updateDocuments>
+  </operation>
+
+
+  <operation>
+    <updateDocuments collection="scanning-profile" id="43">
+      <filter>{}</filter>
+    <update>
+      {
+        "$set": {
+          "modificationDate": "$modificationDate._d",
+          "creationDate": "$creationDate._d"
+        }
+      }
+    </update>
+    </updateDocuments>
+  </operation>
+
+<operation>
+  <updateDocuments collection="organization-details" id="44">
+    <filter>{}</filter>
+    <update>
+      {
+        "$set": {
+          "id":"67f427d7-cac2-47df-930c-c0d64083a994"
+        }
+      }
+    </update>
+  </updateDocuments>
+</operation>
+
+  <operation>
+    <updateDocuments collection="extended-info"  id="45">
+      <filter>{}</filter>
+      <update>        {
+            "$rename": {
+                "index": "pageIndex"
+            }
+        }</update>
+    </updateDocuments>
+  </operation>
+  
+
+<operation>
+<deleteDocuments collection="organization-content" id="47">
+  <filter>{ "path": { "$regex": "^Safwat" } }</filter>
+</deleteDocuments>
+</operation>
+
+
+
+<!--updating DACl with the tenant Id -->
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="48">
+<filter> {"ACP.IACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="49">
+<filter> {"ACP.DACL.objectID": "system.service@contellect.com" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "system.service@contellect.com"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "system.service@contellect.com"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "67f427d7-cac2-47df-930c-c0d64083a994" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="50">
+<filter> {"ACP.IACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="51">
+<filter> {"ACP.DACL.objectID": "x8p3t" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "x8p3t"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "x8p3t"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "mb41q" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="52">
+<filter> {"ACP.IACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.IACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.IACL": {
+      "$map": {
+        "input": "$ACP.IACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+<operation>
+<createAggregationPipeline collection="organization-content" id="53">
+<filter> {"ACP.DACL.objectID": "nj31s" } </filter>
+<pipeline><![CDATA[
+[{"$match":
+  {"ACP.DACL.objectID": "nj31s"}
+  }
+  ,{
+  "$set": {
+    "ACP.DACL": {
+      "$map": {
+        "input": "$ACP.DACL",
+        "as": "item",
+        "in": {
+          "$cond": {
+            "if": { "$eq": ["$$item.objectID", "nj31s"] },
+            "then": { "$mergeObjects": ["$$item", { "objectID": "fpujp" }] },
+            "else": "$$item"
+          }
+        }
+      }
+    }
+  }
+}
+]
+]]>
+</pipeline>
+</createAggregationPipeline>
+</operation>
+
+
+
+</migration>

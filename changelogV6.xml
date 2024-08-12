@@ -1,0 +1,152 @@
+<migration>
+<operation>
+  <updateDocuments collection="content-type" id="1">
+    <filter>{"appliedFor": "VersionContentType"}</filter>
+    <update>
+      <![CDATA[
+      [{
+        "$set": {
+          "components": {
+            "$concatArrays": [
+              "$components",
+              [
+                {
+                  "label": "file",
+                  "key": "file",
+                  "type": "webUpload",
+                  "labelWidth": 10,
+                  "labelMargin": 1,
+                  "input": true,
+                  "tableView": false,
+                  "tag": "div",
+                  "className": "row"
+                }
+              ]
+            ]
+          }
+        }
+      }]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="2">
+    <filter>{"type": {"$in": ["file", "draft", "version"]}}</filter>
+    <update>
+      <![CDATA[
+      [{
+        "$set": {
+          "content.file": {
+            "size": "$content.SystemContentType.data.VersionContentType.data.currentVersionsSize",
+            "extension": "$content.SystemContentType.data.VersionContentType.data.extention",
+            "pagesCount": "$content.SystemContentType.data.VersionContentType.data.pagesCount",
+            "binaryData":"$binaryData",
+            "name":"$name"
+          }
+        }
+      }]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="organization-content" id="3">
+    <filter>{"type": {"$in": ["draft", "version", "file"]}}</filter>
+    <update>
+      <![CDATA[
+    [
+    {
+      "$set": {
+        "binaryData": {
+          "$cond": {
+            "if": { "$isArray": "$binaryData" },
+            "then": "$binaryData",
+            "else": [
+              {
+                "$concat": [
+                  { "$toString": "$binaryData" },
+                  "_content.file"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+      ]]>
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+
+<operation>
+<updateDocuments collection="organization-content" id="4">
+  <filter>{"type":"file"}</filter>
+  <update>
+    {
+      "$set": 
+      {
+        "type": "record"
+      }
+    }
+  </update>
+</updateDocuments>
+</operation>
+
+<operation>
+<updateDocuments collection="organization-content" id="5">
+  <filter>{}</filter>
+  <update>
+  {"$set":{
+    "createdBy":{
+      "fullname":"Mahmoud Helal",
+      "email":"mahmoud.helal@contellect.com",
+      "id":"8f370ac2-39c8-4dec-8504-cb1cf8ceebb4"
+    },
+    "modifiedBy":{
+      "fullname":"Mahmoud Helal",
+      "email":"mahmoud.helal@contellect.com",
+      "id":"8f370ac2-39c8-4dec-8504-cb1cf8ceebb4"
+    }
+  }}
+  </update>
+</updateDocuments>
+</operation>
+
+
+
+<operation>
+  <updateDocuments collection="scanning-profile" id="6">
+    <filter>{}</filter>
+    <update>
+      {
+        "$set": {
+          "modificationDate": "$modificationDate._d",
+          "creationDate": "$creationDate._d"
+        }
+      }
+    </update>
+  </updateDocuments>
+</operation>
+
+
+
+<operation>
+<addField collection="organization-details" name="landing-page" value="/repository" id="7"/>
+</operation>
+
+<operation>
+<deleteField collection="organization-details" name="fields" id="8"/>
+</operation>
+
+</migration>

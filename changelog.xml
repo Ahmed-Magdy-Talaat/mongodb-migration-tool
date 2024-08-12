@@ -1,0 +1,67 @@
+<migration>
+  <operation>
+    <createAggregationPipeline collection="core-authentication-user" id="53">
+      <filter> { } </filter>
+      <pipeline><![CDATA[
+        [
+          {
+            "$set": {
+              "groups": {
+                "$map": {
+                  "input": "$groups",
+                  "as": "group",
+                  "in": {
+                    "$switch": {
+                      "branches": [
+                        {
+                          "case": { "$eq": ["$$group", "x8p3t"] },
+                          "then": "mb41q"
+                        },
+                        {
+                          "case": { "$eq": ["$$group", "nj31s"] },
+                          "then": "fpujp"
+                        }
+                      ],
+                      "default": "$$group"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      ]]></pipeline>
+    </createAggregationPipeline>
+  </operation>
+
+
+    <operation>
+    <updateDocuments collection="core-authentication-group" id="54">
+      <filter> { "id":"x8p3t"} </filter>
+      <update>
+      {"$set":{
+        "id":"mb41q"
+      }}
+      </update>
+    </updateDocuments>
+  </operation>
+
+      <operation>
+    <updateDocuments collection="core-authentication-group" id="55">
+      <filter> { "id":"nj31s"} </filter>
+      <update>
+      {"$set":{
+        "id":"fpujp"
+      }}
+    </update>
+    </updateDocuments>
+  </operation>
+
+
+  <operation>
+  <updateDocuments collection="core-authentication-permission-level" id="56">
+  <filter>{"organizationId":"73288cd5-ceef-4eb1-921c-211d0beebaa3"}</filter>
+  <update>{"$set":{"organizationId":"67f427d7-cac2-47df-930c-c0d64083a994"}}</update>
+  </updateDocuments>
+  </operation>
+</migration>
